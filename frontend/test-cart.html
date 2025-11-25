@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cart API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test Cart API</h1>
+    
+    <div class="section">
+        <h2>1. Login</h2>
+        <button onclick="login()">Login as customer@test.com</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Get Cart</h2>
+        <button onclick="getCart()">Get Cart Items</button>
+        <div id="cartResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Add to Cart</h2>
+        <button onclick="addToCart()">Add Menu Item #1 to Cart</button>
+        <div id="addResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. Clear Cart</h2>
+        <button onclick="clearCart()">Clear All Cart Items</button>
+        <div id="clearResult"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api';
+        let authToken = null;
+
+        async function login() {
+            const resultDiv = document.getElementById('loginResult');
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'customer@test.com',
+                        password: 'password'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.access_token;
+                    resultDiv.innerHTML = `<p class="success">✓ Login successful!</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">✗ Login failed</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function getCart() {
+            const resultDiv = document.getElementById('cartResult');
+            if (!authToken) {
+                resultDiv.innerHTML = `<p class="error">✗ Please login first</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/cart`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p class="success">✓ Cart loaded (${data.length} items)</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">✗ Failed to load cart</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function addToCart() {
+            const resultDiv = document.getElementById('addResult');
+            if (!authToken) {
+                resultDiv.innerHTML = `<p class="error">✗ Please login first</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/cart`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        restaurant_id: 1,
+                        menu_item_id: 1,
+                        quantity: 1
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p class="success">✓ Added to cart</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">✗ Failed to add to cart</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function clearCart() {
+            const resultDiv = document.getElementById('clearResult');
+            if (!authToken) {
+                resultDiv.innerHTML = `<p class="error">✗ Please login first</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/cart`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p class="success">✓ Cart cleared</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">✗ Failed to clear cart</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

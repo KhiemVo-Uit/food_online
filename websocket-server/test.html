@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .log {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .log-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket Connection Test</h1>
+    
+    <div id="status" class="status disconnected">
+        ⏳ Not Connected
+    </div>
+
+    <div>
+        <button onclick="connectSocket()">Connect</button>
+        <button onclick="disconnectSocket()">Disconnect</button>
+        <button onclick="registerUser()">Register User</button>
+        <button onclick="sendTestNotification()">Send Test Notification</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <h3>Connection Logs:</h3>
+    <div class="log" id="logs"></div>
+
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const SOCKET_URL = 'http://localhost:8080';
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logsDiv.insertBefore(logItem, logsDiv.firstChild);
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✅ Connected';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '❌ Disconnected';
+            }
+        }
+
+        function connectSocket() {
+            if (socket && socket.connected) {
+                log('Already connected!', 'warning');
+                return;
+            }
+
+            log('Connecting to ' + SOCKET_URL + '...');
+            
+            socket = io(SOCKET_URL, {
+                transports: ['websocket', 'polling'],
+                path: '/socket.io/',
+                forceNew: true
+            });
+
+            socket.on('connect', () => {
+                log('✅ Connected! Socket ID: ' + socket.id, 'success');
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log('❌ Disconnected. Reason: ' + reason, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                log('❌ Connection Error: ' + error.message, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('notification:new', (data) => {
+                log('🔔 Notification received: ' + JSON.stringify(data), 'notification');
+            });
+        }
+
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+                log('Disconnected manually');
+                updateStatus(false);
+            }
+        }
+
+        function registerUser() {
+            if (!socket || !socket.connected) {
+                log('❌ Not connected! Click Connect first.', 'error');
+                return;
+            }
+
+            const userId = 2; // Test user ID
+            socket.emit('user:register', { userId });
+            log('📝 Registered user ID: ' + userId);
+        }
+
+        function sendTestNotification() {
+            if (!socket || !socket.connected) {
+                log('❌ Not connected! Click Connect first.', 'error');
+                return;
+            }
+
+            const testNotification = {
+                id: 999,
+                type: 'NEW_ORDER',
+                title: 'Test Notification',
+                message: 'This is a test notification from the test page!',
+                data: { order_id: 123, test: true },
+                created_at: new Date().toISOString()
+            };
+
+            // Simulate receiving a notification
+            socket.emit('notification:new', testNotification);
+            log('📤 Sent test notification');
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs cleared');
+        }
+
+        // Auto-connect on load
+        window.onload = () => {
+            log('Page loaded. Ready to test WebSocket connection.');
+            log('Server URL: ' + SOCKET_URL);
+            connectSocket();
+        };
+    </script>
+</body>
+</html>

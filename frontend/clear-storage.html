@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Storage</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #result { margin-top: 20px; }
+        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>Clear LocalStorage</h1>
+    <button onclick="clearStorage()">Clear All Storage</button>
+    <div id="result"></div>
+    
+    <h2>Current Storage:</h2>
+    <div id="storage"></div>
+    
+    <script>
+        function showStorage() {
+            const cart = localStorage.getItem('cart');
+            const restaurant = localStorage.getItem('cart_restaurant');
+            document.getElementById('storage').innerHTML = `
+                <h3>Cart:</h3>
+                <pre>${cart || 'Empty'}</pre>
+                <h3>Restaurant:</h3>
+                <pre>${restaurant || 'Empty'}</pre>
+            `;
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('result').innerHTML = '<p style="color: green; font-weight: bold;">✅ Storage cleared! Close this window and refresh your app.</p>';
+            console.log('LocalStorage cleared');
+            showStorage();
+        }
+        
+        // Show current storage on load
+        showStorage();
+    </script>
+</body>
+</html>
