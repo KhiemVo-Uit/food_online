@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet-routing-machine';
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 
 // Fix default marker icon issue with webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -49,6 +51,63 @@ function MapUpdater({ center, zoom }) {
     }
   }, [center, zoom, map]);
   
+  return null;
+}
+
+// Component to handle routing
+function RoutingControl({ waypoints }) {
+  const map = useMap();
+  const [routingControl, setRoutingControl] = useState(null);
+
+  useEffect(() => {
+    if (!map || waypoints.length < 2) return;
+
+    // Remove existing routing control
+    if (routingControl) {
+      map.removeControl(routingControl);
+    }
+
+    // Create new routing control using OSRM (free routing service)
+    const control = L.Routing.control({
+      waypoints: waypoints.map(pos => L.latLng(pos[0], pos[1])),
+      routeWhileDragging: false,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: false,
+      showAlternatives: false,
+      lineOptions: {
+        styles: [{ color: '#3b82f6', opacity: 0.8, weight: 5 }]
+      },
+      createMarker: () => null, // Don't create default markers (we have custom ones)
+      router: L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1',
+        profile: 'driving' // Use driving profile for road routing
+      }),
+      show: false, // Hide directions panel completely
+      containerClassName: 'd-none' // Hide the routing instructions container
+    }).addTo(map);
+
+    // Listen for route found event
+    control.on('routesfound', function(e) {
+      const routes = e.routes;
+      const summary = routes[0].summary;
+      console.log('🛣️ Route found:', {
+        distance: (summary.totalDistance / 1000).toFixed(2) + ' km',
+        time: Math.round(summary.totalTime / 60) + ' phút',
+        waypoints: waypoints.length
+      });
+    });
+
+    setRoutingControl(control);
+
+    // Cleanup
+    return () => {
+      if (control) {
+        map.removeControl(control);
+      }
+    };
+  }, [map, waypoints]);
+
   return null;
 }
 
@@ -115,11 +174,11 @@ function OrderTrackingMap({ tracking }) {
     );
   }
 
-  // Create route line
-  const routePositions = [];
-  if (restaurantPos) routePositions.push(restaurantPos);
-  routePositions.push(shipperPos);
-  if (deliveryPos) routePositions.push(deliveryPos);
+  // Create route waypoints for road routing
+  const routeWaypoints = [];
+  if (restaurantPos) routeWaypoints.push(restaurantPos);
+  routeWaypoints.push(shipperPos);
+  if (deliveryPos) routeWaypoints.push(deliveryPos);
 
   return (
     <div style={{ height: '500px', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
@@ -128,10 +187,34 @@ function OrderTrackingMap({ tracking }) {
         zoom={14}
         style={{ height: '100%', width: '100%' }}
       >
+        {/* Using CARTO Voyager - Better detail for Vietnam */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={20}
         />
+        
+        {/* Alternative: Esri World Street Map - Very detailed
+        <TileLayer
+          attribution='Tiles &copy; Esri'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={19}
+        />
+        */}
+        
+        {/* Alternative: Hybrid with Satellite imagery
+        <TileLayer
+          attribution='Tiles &copy; Esri'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={19}
+        />
+        <TileLayer
+          attribution='&copy; OpenStreetMap'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          opacity={0.5}
+        />
+        */}
 
         <MapUpdater center={center} zoom={14} />
 
@@ -164,15 +247,9 @@ function OrderTrackingMap({ tracking }) {
           </Marker>
         )}
 
-        {/* Route Line */}
-        {routePositions.length > 1 && (
-          <Polyline
-            positions={routePositions}
-            color="blue"
-            weight={3}
-            opacity={0.7}
-            dashArray="10, 10"
-          />
+        {/* Road-based Routing (OSRM - FREE) */}
+        {routeWaypoints.length > 1 && (
+          <RoutingControl waypoints={routeWaypoints} />
         )}
       </MapContainer>
     </div>

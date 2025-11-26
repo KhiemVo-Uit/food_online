@@ -27,8 +27,7 @@ function OrderTracking() {
 
   useEffect(() => {
     fetchTracking();
-    // Get customer's current location
-    getCurrentLocation();
+    // Don't auto-update customer location - use GPS saved from checkout
   }, [id]);
 
   useEffect(() => {
